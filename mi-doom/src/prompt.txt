@@ -1,0 +1,1086 @@
+Sí. Con ese `pyproject.toml`, lo ideal es **adaptar el prompt para que Qwen trabaje específicamente con Python 3.12 + Pygame-CE + NumPy + Pillow**, sin cambiar las dependencias.
+
+Te recomiendo darle a Qwen este prompt:
+
+Quiero que desarrolles un videojuego FPS retro ORIGINAL inspirado en la sensación de los shooters de los años 90, utilizando exclusivamente Python 3.12, Pygame-CE, NumPy y Pillow.
+
+El proyecto ya está configurado y tiene este `pyproject.toml`:
+
+```toml
+[project]
+name = "mi-doom"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.5.2",
+    "pillow>=12.3.0",
+    "pygame-ce>=2.5.8",
+]
+```
+
+## REGLAS IMPORTANTES
+
+NO agregues dependencias adicionales.
+
+NO utilices Godot, Unity, Unreal, Panda3D, OpenGL externo ni otros motores.
+
+Utiliza exclusivamente:
+
+* Python 3.12+
+* Pygame-CE
+* NumPy
+* Pillow
+
+El juego debe ejecutarse mediante Python y Pygame-CE.
+
+No utilices ningún asset original de Doom. Todos los gráficos deben ser originales, generados proceduralmente o creados mediante código/Pillow.
+
+No copies código, mapas, sprites, texturas, sonidos o música de Doom.
+
+El objetivo es crear un FPS retro original que utilice una tecnología similar a los primeros FPS: renderizado mediante raycasting y sprites 2D.
+
+---
+
+# OBJETIVO DEL PROYECTO
+
+Crear `mi-doom`, un FPS retro completamente jugable.
+
+El juego debe tener:
+
+* Renderizado pseudo-3D mediante raycasting.
+* Movimiento en primera persona.
+* Cámara con rotación.
+* Colisiones.
+* Armas.
+* Enemigos.
+* IA básica.
+* Vida.
+* Armadura.
+* Munición.
+* Llaves.
+* Puertas.
+* Interruptores.
+* Objetos coleccionables.
+* Niveles.
+* HUD.
+* Menús.
+* Sonidos.
+* Música procedural o sintetizada.
+* Sistema de victoria.
+* Sistema de Game Over.
+
+Debe sentirse como un FPS arcade rápido y responsivo.
+
+---
+
+# TECNOLOGÍA
+
+Utiliza:
+
+```text
+Python 3.12+
+pygame-ce
+numpy
+Pillow
+```
+
+Pygame-CE debe encargarse principalmente de:
+
+* Ventana.
+* Input.
+* Mouse.
+* Teclado.
+* Audio.
+* Surface.
+* Renderizado final.
+* Game loop.
+
+NumPy debe utilizarse cuando sea útil para:
+
+* Raycasting.
+* Manipulación de buffers.
+* Generación procedural de texturas.
+* Cálculos vectoriales.
+* Efectos visuales.
+
+Pillow debe utilizarse para:
+
+* Crear texturas proceduralmente.
+* Crear sprites.
+* Manipular imágenes.
+* Generar elementos gráficos.
+
+No añadas librerías externas.
+
+---
+
+# RESOLUCIÓN Y ESTILO
+
+Utiliza una resolución interna baja, por ejemplo:
+
+```text
+320x200
+```
+
+y escala posteriormente la imagen a la ventana.
+
+Esto debe producir una apariencia retro/pixelada.
+
+La ventana puede tener una resolución mayor, por ejemplo:
+
+```text
+1280x800
+```
+
+pero el renderizado 3D debe realizarse inicialmente en una resolución interna baja para mejorar el rendimiento y conseguir estética retro.
+
+Utiliza:
+
+```python
+pygame.transform.scale()
+```
+
+para escalar el framebuffer.
+
+No utilices suavizado al escalar.
+
+---
+
+# MOTOR DE RENDERIZADO
+
+Implementa un motor de raycasting desde cero.
+
+No utilices un motor 3D externo.
+
+El renderer debe:
+
+1. Lanzar rayos desde la cámara.
+2. Detectar paredes.
+3. Calcular distancia.
+4. Corregir fish-eye.
+5. Calcular altura de las paredes.
+6. Dibujar las paredes.
+7. Aplicar texturas.
+8. Renderizar sprites.
+9. Ordenar sprites según distancia.
+
+Utiliza NumPy para optimizar cálculos cuando resulte conveniente.
+
+La arquitectura debe permitir posteriormente agregar:
+
+* Diferentes alturas.
+* Texturas.
+* Iluminación.
+* Efectos.
+* Secretos.
+* Objetos.
+* Decoraciones.
+
+---
+
+# MAPA
+
+Utiliza mapas basados en grids.
+
+Ejemplo conceptual:
+
+```text
+##########
+#........#
+#..##....#
+#........#
+#....D...#
+#........#
+##########
+```
+
+Donde:
+
+```text
+# = pared
+. = suelo
+D = puerta
+```
+
+Pero diseña un sistema extensible.
+
+El mapa debe poder cargarse desde archivos independientes.
+
+Por ejemplo:
+
+```text
+assets/
+levels/
+    level1.json
+    level2.json
+    level3.json
+```
+
+Puedes utilizar JSON mediante la librería estándar de Python.
+
+No añadas ninguna dependencia para JSON.
+
+---
+
+# JUGADOR
+
+Crea una clase `Player`.
+
+Debe contener como mínimo:
+
+```python
+position
+angle
+health
+armor
+ammo
+current_weapon
+keys
+speed
+radius
+```
+
+Movimiento:
+
+```text
+W = avanzar
+S = retroceder
+A = desplazamiento lateral
+D = desplazamiento lateral
+```
+
+Mouse:
+
+```text
+Mouse X = rotación horizontal
+```
+
+Controles adicionales:
+
+```text
+SHIFT = correr
+E = interactuar
+ESC = pausa
+CLICK IZQUIERDO = disparar
+1 = pistola
+2 = escopeta
+3 = ametralladora
+```
+
+El movimiento debe sentirse rápido y responsivo.
+
+Implementa colisiones contra paredes.
+
+Evita que el jugador pueda atravesar esquinas.
+
+---
+
+# ARMAS
+
+Implementa inicialmente:
+
+## Pistola
+
+* Daño: bajo/medio.
+* Cadencia moderada.
+* Munición infinita o abundante.
+* Precisión alta.
+
+## Escopeta
+
+* Daño alto.
+* Dispara varios pellets.
+* Cadencia lenta.
+* Alcance limitado.
+
+## Ametralladora
+
+* Daño bajo.
+* Alta cadencia.
+* Consume mucha munición.
+
+Cada arma debe tener:
+
+```text
+damage
+fire_rate
+ammo_cost
+range
+spread
+cooldown
+```
+
+Crea una clase base:
+
+```python
+Weapon
+```
+
+y clases especializadas cuando sea necesario.
+
+---
+
+# ENEMIGOS
+
+Crea una clase base:
+
+```python
+Enemy
+```
+
+e implementa al menos 3 enemigos originales.
+
+## Drone
+
+* Vida baja.
+* Ataque a distancia.
+* Movimiento moderado.
+
+## Mutante
+
+* Vida media.
+* Ataque a distancia.
+* Patrulla.
+* Persigue al jugador.
+
+## Bestia
+
+* Vida alta.
+* Movimiento rápido.
+* Ataque cuerpo a cuerpo.
+
+La IA debe tener estados:
+
+```text
+IDLE
+PATROL
+CHASE
+ATTACK
+HURT
+DEAD
+```
+
+El enemigo debe:
+
+1. Detectar al jugador.
+2. Comprobar distancia.
+3. Perseguirlo.
+4. Atacar cuando esté suficientemente cerca.
+5. Recibir daño.
+6. Morir.
+
+Implementa una comprobación sencilla de línea de visión utilizando el mapa.
+
+---
+
+# SPRITES
+
+Los enemigos deben utilizar sprites 2D orientados hacia la cámara.
+
+No descargues sprites externos.
+
+Genera sprites temporales/originales utilizando Pillow.
+
+Crea una pequeña utilidad para generar assets:
+
+```text
+tools/
+    generate_assets.py
+```
+
+Esta utilidad puede generar:
+
+* Texturas de paredes.
+* Texturas de suelo.
+* Sprites de enemigos.
+* Iconos.
+* Elementos del HUD.
+
+Los assets generados deben guardarse en:
+
+```text
+assets/
+```
+
+---
+
+# TEXTURAS
+
+Genera texturas procedurales mediante Pillow.
+
+Crea diferentes materiales:
+
+```text
+metal
+stone
+concrete
+tech
+dark_wall
+```
+
+Las texturas pueden tener:
+
+* Ruido.
+* Líneas.
+* Manchas.
+* Grietas.
+* Patrones.
+* Variaciones de color.
+
+No utilices imágenes externas.
+
+---
+
+# PUERTAS
+
+Implementa puertas:
+
+```text
+normal
+red
+blue
+yellow
+```
+
+El jugador debe necesitar la llave correspondiente para abrirlas.
+
+Ejemplo:
+
+```text
+Red Door -> Red Key
+Blue Door -> Blue Key
+Yellow Door -> Yellow Key
+```
+
+Las puertas deben tener animación de apertura.
+
+---
+
+# LLAVES
+
+Implementa:
+
+```text
+red_key
+blue_key
+yellow_key
+```
+
+Al recoger una llave:
+
+* Se almacena en el jugador.
+* Desaparece del mapa.
+* Se actualiza el HUD.
+
+---
+
+# OBJETOS
+
+Implementa pickups:
+
+```text
+health
+armor
+ammo
+weapon
+key
+```
+
+Cada pickup debe tener:
+
+* Sprite.
+* Colisión.
+* Sonido.
+* Efecto al recogerlo.
+
+---
+
+# HUD
+
+Crea un HUD retro.
+
+Debe mostrar:
+
+```text
+HP
+ARMOR
+AMMO
+WEAPON
+KEYS
+```
+
+Ejemplo visual:
+
+```text
+----------------------------------------
+HP 084    ARMOR 025       AMMO 47
+----------------------------------------
+```
+
+El HUD debe generarse con Pygame y fuentes disponibles localmente o fuentes del sistema.
+
+No dependas de fuentes externas descargadas.
+
+---
+
+# EFECTOS
+
+Implementa efectos sencillos:
+
+* Pantalla roja al recibir daño.
+* Flash blanco al disparar.
+* Retroceso del arma.
+* Partículas al impactar.
+* Efecto de muerte.
+* Oscurecimiento por distancia.
+* Screenshake leve al recibir daño.
+
+---
+
+# AUDIO
+
+Utiliza `pygame.mixer`.
+
+No descargues sonidos externos.
+
+Crea sonidos simples mediante síntesis usando Python/NumPy y guárdalos como WAV.
+
+Genera sonidos para:
+
+* Pistola.
+* Escopeta.
+* Ametralladora.
+* Impacto.
+* Daño.
+* Muerte.
+* Pickup.
+* Puerta.
+* Llave.
+* Menús.
+
+Puedes crear un generador:
+
+```text
+tools/generate_audio.py
+```
+
+utilizando NumPy y el módulo `wave` de Python.
+
+---
+
+# MÚSICA
+
+Genera una música retro sencilla mediante síntesis.
+
+No utilices música de Doom.
+
+Debe existir una clase o sistema:
+
+```python
+AudioManager
+```
+
+para controlar:
+
+* SFX.
+* Música.
+* Volumen.
+* Reproducción.
+
+---
+
+# NIVELES
+
+Crea al menos:
+
+```text
+level1
+level2
+level3
+```
+
+Cada nivel debe tener:
+
+* Inicio.
+* Habitaciones.
+* Pasillos.
+* Enemigos.
+* Munición.
+* Vida.
+* Armadura.
+* Llaves.
+* Puertas.
+* Secretos.
+* Salida.
+
+La salida debe permitir pasar al siguiente nivel.
+
+---
+
+# SECRETOS
+
+Implementa algunas zonas secretas.
+
+Por ejemplo:
+
+* Pared que se abre.
+* Habitación escondida.
+* Munición especial.
+* Arma.
+* Armadura.
+
+El sistema debe ser extensible.
+
+---
+
+# MENÚ PRINCIPAL
+
+Crear:
+
+```text
+MI-DOOM
+
+NEW GAME
+SELECT LEVEL
+OPTIONS
+QUIT
+```
+
+No es necesario implementar opciones complejas inicialmente.
+
+---
+
+# PAUSA
+
+ESC debe mostrar:
+
+```text
+PAUSED
+
+RESUME
+RESTART LEVEL
+MAIN MENU
+```
+
+---
+
+# GAME OVER
+
+Cuando el jugador muera:
+
+```text
+YOU DIED
+
+RESTART
+MAIN MENU
+```
+
+---
+
+# VICTORIA
+
+Cuando termine el último nivel:
+
+```text
+MISSION COMPLETE
+
+YOU WIN
+
+SCORE: XXXX
+```
+
+---
+
+# SISTEMA DE PUNTUACIÓN
+
+Implementa puntuación:
+
+```text
+Enemy killed = +100
+Secret found = +500
+Item collected = +10
+Level completed = +1000
+```
+
+Muestra la puntuación en el HUD o pantalla de resultados.
+
+---
+
+# ESTRUCTURA DEL PROYECTO
+
+Utiliza una arquitectura similar a:
+
+```text
+mi-doom/
+│
+├── pyproject.toml
+├── README.md
+│
+├── src/
+│   └── mi_doom/
+│       ├── __init__.py
+│       ├── main.py
+│       ├── game.py
+│       ├── renderer.py
+│       ├── player.py
+│       ├── weapon.py
+│       ├── enemy.py
+│       ├── level.py
+│       ├── collision.py
+│       ├── entities.py
+│       ├── hud.py
+│       ├── menu.py
+│       ├── audio.py
+│       ├── input.py
+│       ├── camera.py
+│       └── config.py
+│
+├── assets/
+│   ├── textures/
+│   ├── sprites/
+│   ├── sounds/
+│   └── music/
+│
+├── levels/
+│   ├── level1.json
+│   ├── level2.json
+│   └── level3.json
+│
+└── tools/
+    ├── generate_assets.py
+    └── generate_audio.py
+```
+
+Puedes modificar la estructura si existe una razón técnica, pero mantén el proyecto modular.
+
+---
+
+# PYPROJECT.TOML
+
+NO MODIFIQUES las dependencias existentes.
+
+Debe seguir siendo compatible con:
+
+```toml
+requires-python = ">=3.12"
+
+dependencies = [
+    "numpy>=2.5.2",
+    "pillow>=12.3.0",
+    "pygame-ce>=2.5.8",
+]
+```
+
+No agregues dependencias.
+
+---
+
+# CALIDAD DEL CÓDIGO
+
+Quiero código real y ejecutable.
+
+NO quiero pseudocódigo.
+
+NO quiero:
+
+```python
+# TODO
+# implementar después
+pass
+```
+
+para funcionalidades esenciales.
+
+No omitas archivos importantes.
+
+Utiliza:
+
+* Type hints cuando sean útiles.
+* Clases bien separadas.
+* Funciones pequeñas.
+* Constantes centralizadas.
+* Manejo de errores.
+* Comentarios solamente donde aporten valor.
+
+Evita crear un archivo monolítico de miles de líneas.
+
+---
+
+# DESARROLLO POR FASES
+
+NO intentes generar todo el proyecto de una sola vez.
+
+Desarrolla el proyecto por fases.
+
+## FASE 1
+
+Crear:
+
+* Estructura.
+* Ventana.
+* Game loop.
+* Input.
+* Renderer.
+* Mapa.
+* Raycasting.
+* Movimiento.
+* Colisiones.
+
+Al terminar, el jugador debe poder caminar por un mapa 3D funcional.
+
+## FASE 2
+
+Agregar:
+
+* Arma.
+* Disparo.
+* Enemigos.
+* IA.
+* Daño.
+* Muerte.
+
+## FASE 3
+
+Agregar:
+
+* Pickups.
+* Munición.
+* Llaves.
+* Puertas.
+* Interruptores.
+
+## FASE 4
+
+Agregar:
+
+* HUD.
+* Menús.
+* Game Over.
+* Victoria.
+* Puntuación.
+
+## FASE 5
+
+Agregar:
+
+* Texturas procedurales.
+* Sprites.
+* Audio.
+* Música.
+* Efectos.
+
+## FASE 6
+
+Agregar:
+
+* 3 niveles.
+* Secretos.
+* Balance.
+* Optimización.
+* Pulido.
+
+---
+
+# REGLA FUNDAMENTAL
+
+Después de cada fase:
+
+1. Revisa todos los archivos.
+2. Comprueba imports.
+3. Comprueba referencias entre módulos.
+4. Busca errores lógicos.
+5. Comprueba que el código sea compatible con Python 3.12.
+6. Verifica que solamente se utilicen las dependencias disponibles.
+7. Indica cómo ejecutar la fase actual.
+8. No avances a la siguiente fase hasta que la fase actual esté correctamente implementada.
+
+Cuando generes código, entrega los archivos completos y no solamente fragmentos.
+
+El resultado final debe ser un juego FPS retro ORIGINAL llamado `mi-doom`, ejecutable con Python 3.12 y utilizando únicamente Pygame-CE, NumPy, Pillow y la biblioteca estándar de Python.
+
+
+
+import pygame
+import math
+import sys
+
+# --- CONFIGURACIÓN INICIAL ---
+ANCHO_PANTALLA = 800
+ALTO_PANTALLA = 600
+FPS = 60
+
+# Configuración del motor 3D
+NUM_RAYOS = 200          # Cantidad de rayos (resolución horizontal)
+ANCHO_RAYO = ANCHO_PANTALLA // NUM_RAYOS
+FOV = math.pi / 3        # Campo de visión (60 grados)
+HALF_FOV = FOV / 2
+PROFUNDIDAD_MAXIMA = 16  # Distancia máxima de renderizado
+PASO_RAYO = 0.05         # Precisión del rayo
+
+# --- MAPA DEL NIVEL ---
+# 1 = Pared, 0 = Espacio vacío
+MAPA = [
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1],
+    [1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+    [1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+    [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+    [1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1],
+    [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+]
+
+ALTO_MAPA = len(MAPA)
+ANCHO_MAPA = len(MAPA[0])
+
+def main():
+    pygame.init()
+    pantalla = pygame.display.set_mode((ANCHO_PANTALLA, ALTO_PANTALLA))
+    pygame.display.set_caption("Mi Doom - Prototipo Raycasting")
+    reloj = pygame.time.Clock()
+
+    # --- ESTADO DEL JUGADOR ---
+    # Empezamos en el centro de la celda (1.5, 1.5) para no chocar al inicio
+    jugador_x = 1.5
+    jugador_y = 1.5
+    jugador_angulo = 0.0
+    velocidad_mov = 0.06
+    velocidad_rot = 0.05
+
+    ejecutando = True
+    while ejecutando:
+        # 1. MANEJO DE EVENTOS
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                ejecutando = False
+            if evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_ESCAPE:
+                    ejecutando = False
+
+        # 2. ENTRADA DEL USUARIO (Movimiento y Rotación)
+        teclas = pygame.key.get_pressed()
+        
+        # Rotación (Flechas Izquierda/Derecha)
+        if teclas[pygame.K_LEFT]:
+            jugador_angulo -= velocidad_rot
+        if teclas[pygame.K_RIGHT]:
+            jugador_angulo += velocidad_rot
+
+        # Cálculo de movimiento (WASD)
+        dx, dy = 0, 0
+        if teclas[pygame.K_w] or teclas[pygame.K_UP]:
+            dx += velocidad_mov * math.cos(jugador_angulo)
+            dy += velocidad_mov * math.sin(jugador_angulo)
+        if teclas[pygame.K_s] or teclas[pygame.K_DOWN]:
+            dx -= velocidad_mov * math.cos(jugador_angulo)
+            dy -= velocidad_mov * math.sin(jugador_angulo)
+        if teclas[pygame.K_a]: # Strafe izquierda
+            dx += velocidad_mov * math.cos(jugador_angulo - math.pi/2)
+            dy += velocidad_mov * math.sin(jugador_angulo - math.pi/2)
+        if teclas[pygame.K_d]: # Strafe derecha
+            dx -= velocidad_mov * math.cos(jugador_angulo - math.pi/2)
+            dy -= velocidad_mov * math.sin(jugador_angulo - math.pi/2)
+
+        # 3. COLISIONES (Evitar atravesar paredes)
+        # Margen de seguridad para no pegarse a la pared
+        margen = 0.2 
+        
+        # Colisión en X
+        if dx != 0:
+            check_x = jugador_x + dx + (margen if dx > 0 else -margen)
+            if 0 <= int(jugador_y) < ALTO_MAPA and 0 <= int(check_x) < ANCHO_MAPA:
+                if MAPA[int(jugador_y)][int(check_x)] == 0:
+                    jugador_x += dx
+                    
+        # Colisión en Y
+        if dy != 0:
+            check_y = jugador_y + dy + (margen if dy > 0 else -margen)
+            if 0 <= int(check_y) < ALTO_MAPA and 0 <= int(jugador_x) < ANCHO_MAPA:
+                if MAPA[int(check_y)][int(jugador_x)] == 0:
+                    jugador_y += dy
+
+        # 4. RENDERIZADO 3D (Raycasting)
+        # Dibujar cielo y suelo
+        pantalla.fill((100, 100, 150))  # Cielo
+        pygame.draw.rect(pantalla, (50, 50, 50), (0, ALTO_PANTALLA//2, ANCHO_PANTALLA, ALTO_PANTALLA//2)) # Suelo
+
+        # Lanzar rayos
+        for rayo in range(NUM_RAYOS):
+            # Calcular el ángulo de este rayo específico
+            angulo_rayo = (jugador_angulo - HALF_FOV) + (rayo / NUM_RAYOS) * FOV
+            
+            # Avanzar el rayo paso a paso
+            for profundidad in range(0, int(PROFUNDIDAD_MAXIMA * 100), int(PASO_RAYO * 100)):
+                dist = profundidad / 100.0
+                
+                # Calcular posición actual del rayo
+                x_rayo = jugador_x + dist * math.cos(angulo_rayo)
+                y_rayo = jugador_y + dist * math.sin(angulo_rayo)
+                
+                # Convertir a coordenadas del mapa
+                mapa_x, mapa_y = int(x_rayo), int(y_rayo)
+                
+                # Verificar límites del mapa
+                if mapa_x < 0 or mapa_x >= ANCHO_MAPA or mapa_y < 0 or mapa_y >= ALTO_MAPA:
+                    break
+                    
+                # Si choca con una pared
+                if MAPA[mapa_y][mapa_x] == 1:
+                    # Corrección de efecto "ojo de pez" (fisheye)
+                    dist_corregida = dist * math.cos(angulo_rayo - jugador_angulo)
+                    
+                    # Calcular altura de la pared en pantalla
+                    altura_pared = min(ALTO_PANTALLA, (ALTO_PANTALLA / dist_corregida) * 1.2)
+                    
+                    # Calcular color (más oscuro cuanto más lejos)
+                    sombra = max(0, 255 - int(dist_corregida * 20))
+                    color_pared = (sombra, sombra // 2, 0) # Tono marrón/naranja
+                    
+                    # Dibujar la columna vertical
+                    pygame.draw.rect(
+                        pantalla, 
+                        color_pared, 
+                        (rayo * ANCHO_RAYO, ALTO_PANTALLA/2 - altura_pared/2, ANCHO_RAYO, altura_pared)
+                    )
+                    break
+
+        # 5. MINIMAPA 2D (Para depuración y orientación)
+        ESCALA_MINIMAPA = 15
+        offset_x, offset_y = 10, 10
+        
+        # Dibujar mapa
+        for y in range(ALTO_MAPA):
+            for x in range(ANCHO_MAPA):
+                if MAPA[y][x] == 1:
+                    pygame.draw.rect(pantalla, (200, 200, 200), 
+                                     (offset_x + x * ESCALA_MINIMAPA, offset_y + y * ESCALA_MINIMAPA, 
+                                      ESCALA_MINIMAPA, ESCALA_MINIMAPA))
+                else:
+                    pygame.draw.rect(pantalla, (50, 50, 50), 
+                                     (offset_x + x * ESCALA_MINIMAPA, offset_y + y * ESCALA_MINIMAPA, 
+                                      ESCALA_MINIMAPA, ESCALA_MINIMAPA))
+        
+        # Dibujar jugador en el minimapa
+        px_mini = offset_x + jugador_x * ESCALA_MINIMAPA
+        py_mini = offset_y + jugador_y * ESCALA_MINIMAPA
+        pygame.draw.circle(pantalla, (255, 0, 0), (int(px_mini), int(py_mini)), 4)
+        
+        # Dibujar línea de visión en el minimapa
+        fin_x = px_mini + math.cos(jugador_angulo) * 20
+        fin_y = py_mini + math.sin(jugador_angulo) * 20
+        pygame.draw.line(pantalla, (255, 0, 0), (int(px_mini), int(py_mini)), (int(fin_x), int(fin_y)), 2)
+
+        # 6. ACTUALIZAR PANTALLA
+        pygame.display.flip()
+        reloj.tick(FPS)
+
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
