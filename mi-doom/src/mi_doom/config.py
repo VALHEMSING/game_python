@@ -46,6 +46,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 LEVELS_DIR = PROJECT_ROOT / "levels"
 LEVEL1_PATH = LEVELS_DIR / "level1.json"
 
+LEVEL_FILENAMES = [
+    "level1.json",
+    "level2.json",
+    "level3.json",
+]
+
 # Colores base
 CEILING_COLOR = (36, 34, 42)
 FLOOR_COLOR = (58, 52, 46)
@@ -66,4 +72,5 @@ DOOR_COLORS = {
 }
 
 SWITCH_COLOR = (90, 170, 90)
+EXIT_COLOR = (70, 220, 120)
 MESSAGE_COLOR = (240, 220, 120)

@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 from mi_doom.entities import (
     DOOR_TILES,
+    EXIT_TILE,
     SWITCH_TILE,
     Door,
     Pickup,
@@ -246,6 +247,9 @@ class Level:
         if tile == SWITCH_TILE:
             return False
 
+        if tile == EXIT_TILE:
+            return False
+
         return tile in WALKABLE_TILES
 
     def is_solid(self, x: int, y: int) -> bool:
@@ -270,6 +274,9 @@ class Level:
                 continue
 
             if tile == SWITCH_TILE:
+                return (tile_x, tile_y)
+
+            if tile == EXIT_TILE:
                 return (tile_x, tile_y)
 
             if self.is_solid(tile_x, tile_y):

@@ -7,6 +7,7 @@ from mi_doom.config import MAX_AMMO, MAX_ARMOR, MAX_HEALTH
 
 DOOR_TILES = {"D", "R", "B", "Y"}
 SWITCH_TILE = "S"
+EXIT_TILE = "X"
 
 DOOR_KEYS = {
     "D": None,
@@ -77,6 +78,7 @@ class PickupKind(Enum):
     KEY_RED = "key_red"
     KEY_BLUE = "key_blue"
     KEY_YELLOW = "key_yellow"
+    SECRET = "secret"
 
 
 PICKUP_STATS = {
@@ -115,6 +117,10 @@ PICKUP_STATS = {
     PickupKind.KEY_YELLOW: {
         "scale": 0.28,
         "radius": 0.18,
+    },
+    PickupKind.SECRET: {
+        "scale": 0.40,
+        "radius": 0.22,
     },
 }
 
@@ -224,5 +230,8 @@ class Pickup:
             self.active = False
             return "Llave amarilla"
 
+        if self.kind == PickupKind.SECRET:
+            self.active = False
+            return "Secreto encontrado"
+
         return None
-    

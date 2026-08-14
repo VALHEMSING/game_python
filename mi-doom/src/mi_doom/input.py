@@ -10,12 +10,22 @@ class PlayerControls:
     move_forward: float = 0.0
     move_strafe: float = 0.0
     turn_delta: float = 0.0
-    mouse_dx: float = 0.0
     run: bool = False
     interact: bool = False
     shoot_pressed: bool = False
     shoot_held: bool = False
     weapon_slot: int | None = None
+    mouse_dx: int = 0
+
+
+@dataclass
+class MenuControls:
+    up: bool = False
+    down: bool = False
+    left: bool = False
+    right: bool = False
+    confirm: bool = False
+    back: bool = False
 
 
 class InputHandler:
@@ -23,6 +33,13 @@ class InputHandler:
         self.quit_requested = False
         self.toggle_pause_requested = False
         self.restart_requested = False
+
+        self.menu_up_requested = False
+        self.menu_down_requested = False
+        self.menu_left_requested = False
+        self.menu_right_requested = False
+        self.menu_confirm_requested = False
+        self.menu_back_requested = False
 
         self._interact_pressed = False
         self._shoot_pressed = False
@@ -36,6 +53,7 @@ class InputHandler:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.toggle_pause_requested = True
+                    self.menu_back_requested = True
 
                 elif event.key == pygame.K_q:
                     self.quit_requested = True
@@ -48,8 +66,24 @@ class InputHandler:
 
                 elif event.key == pygame.K_SPACE:
                     self._shoot_pressed = True
+                    self.menu_confirm_requested = True
 
-                elif event.key == pygame.K_1:
+                elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
+                    self.menu_confirm_requested = True
+
+                elif event.key in (pygame.K_UP, pygame.K_w):
+                    self.menu_up_requested = True
+
+                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                    self.menu_down_requested = True
+
+                elif event.key in (pygame.K_LEFT, pygame.K_a):
+                    self.menu_left_requested = True
+
+                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                    self.menu_right_requested = True
+
+                if event.key == pygame.K_1:
                     self._weapon_slot = 1
 
                 elif event.key == pygame.K_2:
@@ -85,7 +119,7 @@ class InputHandler:
 
         run = bool(keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT])
 
-        mouse_dx = float(pygame.mouse.get_rel()[0])
+        mouse_dx = pygame.mouse.get_rel()[0]
         mouse_buttons = pygame.mouse.get_pressed()
         shoot_held = bool(mouse_buttons[0] or keys[pygame.K_SPACE])
 
@@ -93,17 +127,49 @@ class InputHandler:
             move_forward=move_forward,
             move_strafe=move_strafe,
             turn_delta=turn_delta,
-            mouse_dx=mouse_dx,
             run=run,
             interact=self._interact_pressed,
             shoot_pressed=self._shoot_pressed,
             shoot_held=shoot_held,
             weapon_slot=self._weapon_slot,
+            mouse_dx=mouse_dx,
         )
 
-        # Acciones de un solo frame se consumen aquí.
+        self._clear_gameplay_one_shot()
+        self._clear_menu_flags()
+
+        return controls
+
+    def get_menu_controls(self) -> MenuControls:
+        controls = MenuControls(
+            up=self.menu_up_requested,
+            down=self.menu_down_requested,
+            left=self.menu_left_requested,
+            right=self.menu_right_requested,
+            confirm=self.menu_confirm_requested,
+            back=self.menu_back_requested,
+        )
+
+        # Consumir movimiento de ratón para no arrastrarlo al volver al juego.
+        pygame.mouse.get_rel()
+
+        self._clear_gameplay_one_shot()
+        self._clear_menu_flags()
+
+        # En menús, ESC se usa como retroceso; no debe quedar como pausa.
+        self.toggle_pause_requested = False
+
+        return controls
+
+    def _clear_gameplay_one_shot(self) -> None:
         self._interact_pressed = False
         self._shoot_pressed = False
         self._weapon_slot = None
 
-        return controls
+    def _clear_menu_flags(self) -> None:
+        self.menu_up_requested = False
+        self.menu_down_requested = False
+        self.menu_left_requested = False
+        self.menu_right_requested = False
+        self.menu_confirm_requested = False
+        self.menu_back_requested = False

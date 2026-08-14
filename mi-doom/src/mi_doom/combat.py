@@ -25,13 +25,13 @@ def shoot_hitscan(
     max_range: float,
     damage: float,
     pellet_count: int = 1,
-) -> bool:
+) -> int:
     """
     Dispara uno o varios perdigones usando hitscan.
 
-    Devuelve True si al menos un perdigón impactó.
+    Devuelve la cantidad de enemigos eliminados.
     """
-    hit_any = False
+    killed_count = 0
 
     for _ in range(max(1, pellet_count)):
         shot_angle = angle + random.uniform(-spread, spread)
@@ -45,10 +45,10 @@ def shoot_hitscan(
         )
 
         if target is not None:
-            target.take_damage(damage, (x, y))
-            hit_any = True
+            if target.take_damage(damage, (x, y)):
+                killed_count += 1
 
-    return hit_any
+    return killed_count
 
 
 def _find_hitscan_target(

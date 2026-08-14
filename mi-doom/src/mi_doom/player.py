@@ -53,6 +53,7 @@ class Player:
 
     speed: float = PLAYER_WALK_SPEED
     radius: float = PLAYER_RADIUS
+    mouse_sensitivity: float = MOUSE_SENSITIVITY
 
     muzzle_flash_timer: float = 0.0
     damage_flash_timer: float = 0.0
@@ -124,25 +125,22 @@ class Player:
         controls: PlayerControls,
         enemies: Iterable[Any],
         level: Level,
-    ) -> None:
+    ) -> int:
         if self.is_dead:
-            return
-
-        if controls.weapon_slot is not None and controls.weapon_slot in self.weapons:
-            self.current_weapon_slot = controls.weapon_slot
+            return 0
 
         weapon = self.current_weapon
         want_fire = controls.shoot_held if weapon.automatic else controls.shoot_pressed
 
         if not want_fire:
-            return
+            return 0
 
         if weapon.can_fire(self.ammo):
             weapon.fire()
             weapon.consume_ammo(self.ammo)
             self.muzzle_flash_timer = 0.06
 
-            shoot_hitscan(
+            return shoot_hitscan(
                 level=level,
                 enemies=enemies,
                 x=self.x,
@@ -153,9 +151,12 @@ class Player:
                 damage=weapon.damage,
                 pellet_count=weapon.pellets,
             )
-        elif weapon.ammo_type is not None:
+
+        if weapon.ammo_type is not None:
             # Si el arma actual se queda sin munición, cambio automático a pistola.
             self.current_weapon_slot = 1
+
+        return 0
 
     def _update_timers(self, dt: float) -> None:
         self.muzzle_flash_timer = max(0.0, self.muzzle_flash_timer - dt)
@@ -166,7 +167,7 @@ class Player:
             weapon.update(dt)
 
     def _update_rotation(self, dt: float, controls: PlayerControls) -> None:
-        self.angle += controls.mouse_dx * MOUSE_SENSITIVITY
+        self.angle += controls.mouse_dx * self.mouse_sensitivity
         self.angle += controls.turn_delta * KEYBOARD_TURN_SPEED * dt
         self.angle %= math.tau
 
