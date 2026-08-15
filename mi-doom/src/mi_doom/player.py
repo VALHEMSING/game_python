@@ -58,6 +58,10 @@ class Player:
     muzzle_flash_timer: float = 0.0
     damage_flash_timer: float = 0.0
 
+    is_moving: bool = False
+    bob_time: float = 0.0
+    damage_sound_requested: bool = False
+
     @property
     def position(self) -> tuple[float, float]:
         return (self.x, self.y)
@@ -109,6 +113,7 @@ class Player:
         self.armor -= absorbed
         self.health -= amount - absorbed
         self.damage_flash_timer = 0.3
+        self.damage_sound_requested = True
 
         if self.health <= 0.0:
             self.health = 0.0
@@ -125,22 +130,22 @@ class Player:
         controls: PlayerControls,
         enemies: Iterable[Any],
         level: Level,
-    ) -> int:
+    ) -> tuple[bool, int, int, list[Any]]:
         if self.is_dead:
-            return 0
+            return False, 0, 0, []
 
         weapon = self.current_weapon
         want_fire = controls.shoot_held if weapon.automatic else controls.shoot_pressed
 
         if not want_fire:
-            return 0
+            return False, 0, 0, []
 
         if weapon.can_fire(self.ammo):
             weapon.fire()
             weapon.consume_ammo(self.ammo)
             self.muzzle_flash_timer = 0.06
 
-            return shoot_hitscan(
+            hit_count, killed_count, hit_targets = shoot_hitscan(
                 level=level,
                 enemies=enemies,
                 x=self.x,
@@ -152,11 +157,13 @@ class Player:
                 pellet_count=weapon.pellets,
             )
 
+            return True, hit_count, killed_count, hit_targets
+
         if weapon.ammo_type is not None:
             # Si el arma actual se queda sin munición, cambio automático a pistola.
             self.current_weapon_slot = 1
 
-        return 0
+        return False, 0, 0, []
 
     def _update_timers(self, dt: float) -> None:
         self.muzzle_flash_timer = max(0.0, self.muzzle_flash_timer - dt)
@@ -176,6 +183,8 @@ class Player:
         strafe = controls.move_strafe
 
         if forward == 0.0 and strafe == 0.0:
+            self.is_moving = False
+            self.bob_time = 0.0
             return
 
         length = math.hypot(forward, strafe)
@@ -195,6 +204,9 @@ class Player:
 
         dx = (dir_x * forward + right_x * strafe) * speed * dt
         dy = (dir_y * forward + right_y * strafe) * speed * dt
+
+        self.is_moving = True
+        self.bob_time += dt * speed * 2.0
 
         self._move_with_collision(dx, dy, level)
 

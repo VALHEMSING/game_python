@@ -1,3 +1,7 @@
+"""
+Módulo que representa un nivel del juego, incluyendo el grid de tiles,
+puertas, interruptores, pickups, decoraciones y lógica de interacción.
+"""
 from __future__ import annotations
 
 import json
@@ -50,6 +54,11 @@ WALKABLE_TILES = {".", "P"}
 
 
 class Level:
+    """
+    Representa un nivel del juego con su grid de tiles, puertas, interruptores,
+    pickups, decoraciones y posiciones de spawn de enemigos.
+    """
+
     def __init__(
         self,
         grid: Iterable[str],
@@ -58,7 +67,11 @@ class Level:
         enemy_spawns: list[dict[str, Any]] | None = None,
         pickup_spawns: list[dict[str, Any]] | None = None,
         switch_links: list[dict[str, Any]] | None = None,
+        decorations: list[dict[str, Any]] | None = None,
     ) -> None:
+        """
+        Inicializa el nivel a partir de un grid de strings y listas de spawns.
+        """
         rows = [str(row) for row in grid]
         if not rows:
             raise ValueError("Level grid cannot be empty.")
@@ -80,6 +93,9 @@ class Level:
 
         self.pickups = self._create_pickups(pickup_spawns or [])
         self._parse_switch_links(switch_links or [])
+        self.decorations: list[dict[str, Any]] = (
+            list(decorations) if decorations else []
+        )
 
         grid_start = self._extract_start_from_grid()
 
@@ -96,6 +112,7 @@ class Level:
 
     @classmethod
     def load(cls, path: Path | str) -> Level:
+        """Carga un nivel desde un archivo JSON, o devuelve el nivel por defecto."""
         file_path = Path(path)
 
         if not file_path.exists():
@@ -117,10 +134,17 @@ class Level:
         enemy_spawns = raw_enemy_spawns if isinstance(raw_enemy_spawns, list) else []
 
         raw_pickup_spawns = data.get("pickups", [])
-        pickup_spawns = raw_pickup_spawns if isinstance(raw_pickup_spawns, list) else []
+        pickup_spawns = (
+            raw_pickup_spawns if isinstance(raw_pickup_spawns, list) else []
+        )
 
         raw_switch_links = data.get("switches", [])
-        switch_links = raw_switch_links if isinstance(raw_switch_links, list) else []
+        switch_links = (
+            raw_switch_links if isinstance(raw_switch_links, list) else []
+        )
+
+        raw_decorations = data.get("decorations", [])
+        decorations = raw_decorations if isinstance(raw_decorations, list) else []
 
         return cls(
             grid=grid,
@@ -129,23 +153,28 @@ class Level:
             enemy_spawns=enemy_spawns,
             pickup_spawns=pickup_spawns,
             switch_links=switch_links,
+            decorations=decorations,
         )
 
     @classmethod
     def default(cls) -> Level:
+        """Devuelve un nivel por defecto usado como fallback."""
         return cls(
             DEFAULT_GRID,
             name="Default",
             enemy_spawns=DEFAULT_ENEMY_SPAWNS,
             pickup_spawns=[],
             switch_links=[],
+            decorations=[],
         )
 
     def update(self, dt: float) -> None:
+        """Actualiza el estado de las puertas animadas en cada frame."""
         for door in self.doors.values():
             door.update(dt)
 
     def _scan_tiles(self) -> None:
+        """Escanea el grid para inicializar puertas e interruptores."""
         for y, row in enumerate(self.grid):
             for x, tile in enumerate(row):
                 if tile in DOOR_TILES:
@@ -157,6 +186,7 @@ class Level:
         self,
         raw_spawns: list[dict[str, Any]],
     ) -> list[Pickup]:
+        """Instancia los pickups a partir de los datos crudos de spawn."""
         pickups: list[Pickup] = []
 
         if not isinstance(raw_spawns, list):
@@ -181,6 +211,7 @@ class Level:
         return pickups
 
     def _parse_switch_links(self, raw_links: list[dict[str, Any]]) -> None:
+        """Parsea los vínculos entre interruptores y puertas objetivo."""
         if not isinstance(raw_links, list):
             return
 
@@ -205,6 +236,7 @@ class Level:
                 self.switch_links[(x, y)] = targets
 
     def _extract_start_from_grid(self) -> tuple[float, float] | None:
+        """Extrae la posición inicial del jugador desde el caracter 'P' en el grid."""
         start: tuple[float, float] | None = None
         clean_rows: list[str] = []
 
@@ -220,6 +252,7 @@ class Level:
         return start
 
     def _first_walkable_position(self) -> tuple[float, float] | None:
+        """Encuentra la primera posición transitable del grid."""
         for y, row in enumerate(self.grid):
             for x, tile in enumerate(row):
                 if tile in WALKABLE_TILES:
@@ -227,17 +260,20 @@ class Level:
         return None
 
     def _is_acceptable_start(self, start: tuple[float, float]) -> bool:
+        """Verifica si una posición es válida como punto de inicio."""
         x, y = start
         tile_x = int(math.floor(x))
         tile_y = int(math.floor(y))
         return not self.is_solid(tile_x, tile_y)
 
     def tile_at(self, x: int, y: int) -> str:
+        """Devuelve el caracter del tile en la posición dada, o '#' si está fuera."""
         if x < 0 or y < 0 or x >= self.width or y >= self.height:
             return "#"
         return self.grid[y][x]
 
     def is_walkable(self, x: int, y: int) -> bool:
+        """Indica si una posición es transitable por el jugador."""
         tile = self.tile_at(x, y)
 
         if tile in DOOR_TILES:
@@ -253,9 +289,14 @@ class Level:
         return tile in WALKABLE_TILES
 
     def is_solid(self, x: int, y: int) -> bool:
+        """Indica si una posición es sólida (bloquea el paso)."""
         return not self.is_walkable(x, y)
 
     def find_interactable_in_front(self, player: Any) -> tuple[int, int] | None:
+        """
+        Busca un tile interactuable (puerta, interruptor o salida)
+        frente al jugador dentro de un rango de distancia.
+        """
         distances = (0.5, 0.9, 1.3, 1.7)
 
         for distance in distances:
@@ -289,6 +330,7 @@ class Level:
         position: tuple[int, int],
         player: Any,
     ) -> tuple[bool, str]:
+        """Intenta abrir una puerta en la posición dada, comprobando llaves."""
         door = self.doors.get(position)
         if door is None:
             return False, ""
@@ -296,6 +338,10 @@ class Level:
         return door.try_open(player)
 
     def activate_switch(self, position: tuple[int, int]) -> bool:
+        """
+        Activa un interruptor en la posición dada, abriendo las puertas vinculadas.
+        Devuelve True si se activó, False si ya estaba activado o no existe.
+        """
         if position not in self.switches:
             return False
 

@@ -1,28 +1,22 @@
-from __future__ import annotations
-
+"""
+Punto de entrada principal de la aplicación mi-doom.
+"""
 import sys
 from pathlib import Path
 
+# Ajuste dinámico del PYTHONPATH para permitir la ejecución directa del script.
+_SRC_DIR = Path(__file__).resolve().parent.parent
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 
-def _ensure_src_on_path() -> None:
-    """
-    Permite ejecutar directamente con:
-
-        python src/mi_doom/main.py
-
-    sin necesidad de instalar el paquete.
-    """
-    src_dir = Path(__file__).resolve().parents[1]
-    if str(src_dir) not in sys.path:
-        sys.path.insert(0, str(src_dir))
+# pylint: disable=wrong-import-position
+from mi_doom.game import Game
 
 
 def main() -> None:
-    _ensure_src_on_path()
-
-    from mi_doom.game import Game
-
-    Game().run()
+    """Inicializa y ejecuta el bucle principal del juego."""
+    game = Game()
+    game.run()
 
 
 if __name__ == "__main__":

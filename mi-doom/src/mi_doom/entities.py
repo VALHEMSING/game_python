@@ -1,3 +1,7 @@
+"""
+Módulo que define las entidades interactivas del nivel,
+como puertas, interruptores y pickups (objetos recogibles).
+"""
 from __future__ import annotations
 
 from enum import Enum
@@ -24,7 +28,10 @@ DOOR_KEY_NAMES = {
 
 
 class Door:
+    """Representa una puerta interactiva que puede abrirse."""
+
     def __init__(self, x: int, y: int, tile: str) -> None:
+        """Inicializa la puerta en su posición y estado cerrada."""
         self.x = x
         self.y = y
         self.tile = tile
@@ -34,16 +41,20 @@ class Door:
 
     @property
     def is_open(self) -> bool:
+        """Indica si la puerta está completamente abierta."""
         return self.openness >= 1.0
 
     @property
     def is_passable(self) -> bool:
+        """Indica si el jugador puede atravesar la puerta."""
         return self.is_open
 
     def force_open(self) -> None:
+        """Inicia la animación de apertura forzada (ej. por un interruptor)."""
         self.opening = True
 
     def update(self, dt: float) -> None:
+        """Actualiza la animación de apertura de la puerta."""
         if not self.opening:
             return
 
@@ -53,6 +64,7 @@ class Door:
             self.opening = False
 
     def try_open(self, player: Any) -> tuple[bool, str]:
+        """Intenta abrir la puerta comprobando si el jugador tiene la llave requerida."""
         if self.is_open or self.opening:
             return True, "Puerta abierta"
 
@@ -69,6 +81,7 @@ class Door:
 
 
 class PickupKind(Enum):
+    """Tipos de objetos recogibles disponibles en el juego."""
     HEALTH = "health"
     ARMOR = "armor"
     AMMO_BULLETS = "ammo_bullets"
@@ -82,50 +95,22 @@ class PickupKind(Enum):
 
 
 PICKUP_STATS = {
-    PickupKind.HEALTH: {
-        "scale": 0.35,
-        "radius": 0.22,
-    },
-    PickupKind.ARMOR: {
-        "scale": 0.35,
-        "radius": 0.22,
-    },
-    PickupKind.AMMO_BULLETS: {
-        "scale": 0.30,
-        "radius": 0.20,
-    },
-    PickupKind.AMMO_SHELLS: {
-        "scale": 0.30,
-        "radius": 0.20,
-    },
-    PickupKind.WEAPON_SHOTGUN: {
-        "scale": 0.45,
-        "radius": 0.25,
-    },
-    PickupKind.WEAPON_MACHINEGUN: {
-        "scale": 0.45,
-        "radius": 0.25,
-    },
-    PickupKind.KEY_RED: {
-        "scale": 0.28,
-        "radius": 0.18,
-    },
-    PickupKind.KEY_BLUE: {
-        "scale": 0.28,
-        "radius": 0.18,
-    },
-    PickupKind.KEY_YELLOW: {
-        "scale": 0.28,
-        "radius": 0.18,
-    },
-    PickupKind.SECRET: {
-        "scale": 0.40,
-        "radius": 0.22,
-    },
+    PickupKind.HEALTH: {"scale": 0.35, "radius": 0.22},
+    PickupKind.ARMOR: {"scale": 0.35, "radius": 0.22},
+    PickupKind.AMMO_BULLETS: {"scale": 0.30, "radius": 0.20},
+    PickupKind.AMMO_SHELLS: {"scale": 0.30, "radius": 0.20},
+    PickupKind.WEAPON_SHOTGUN: {"scale": 0.45, "radius": 0.25},
+    PickupKind.WEAPON_MACHINEGUN: {"scale": 0.45, "radius": 0.25},
+    PickupKind.KEY_RED: {"scale": 0.28, "radius": 0.18},
+    PickupKind.KEY_BLUE: {"scale": 0.28, "radius": 0.18},
+    PickupKind.KEY_YELLOW: {"scale": 0.28, "radius": 0.18},
+    PickupKind.SECRET: {"scale": 0.40, "radius": 0.22},
 }
 
 
 class Pickup:
+    """Representa un objeto recogible en el mapa."""
+
     def __init__(
         self,
         kind: PickupKind,
@@ -133,6 +118,7 @@ class Pickup:
         y: float,
         sprite: Any = None,
     ) -> None:
+        """Inicializa el pickup con su tipo, posición y propiedades físicas."""
         stats = PICKUP_STATS[kind]
 
         self.kind = kind
@@ -145,48 +131,50 @@ class Pickup:
 
     @property
     def is_dead(self) -> bool:
+        """Indica si el pickup ya ha sido recogido."""
         return not self.active
 
     def try_apply(self, player: Any) -> str | None:
+        """Aplica el efecto del pickup al jugador si es posible."""
         if not self.active:
             return None
 
         if self.kind == PickupKind.HEALTH:
             if player.health >= MAX_HEALTH:
                 return None
-            player.health = min(MAX_HEALTH, player.health + 25.0)
+            player.health = min(MAX_HEALTH, player.health + 20.0)
             self.active = False
-            return "Salud +25"
+            return "Salud +20"
 
         if self.kind == PickupKind.ARMOR:
             if player.armor >= MAX_ARMOR:
                 return None
-            player.armor = min(MAX_ARMOR, player.armor + 25.0)
+            player.armor = min(MAX_ARMOR, player.armor + 20.0)
             self.active = False
-            return "Armadura +25"
+            return "Armadura +20"
 
         if self.kind == PickupKind.AMMO_BULLETS:
-            if not player.add_ammo("bullets", 30):
+            if not player.add_ammo("bullets", 20):
                 return None
             self.active = False
-            return "Balas +30"
+            return "Balas +20"
 
         if self.kind == PickupKind.AMMO_SHELLS:
-            if not player.add_ammo("shells", 8):
+            if not player.add_ammo("shells", 6):
                 return None
             self.active = False
-            return "Cartuchos +8"
+            return "Cartuchos +6"
 
         if self.kind == PickupKind.WEAPON_SHOTGUN:
             slot = 2
             ammo_type = "shells"
-            ammo_amount = 8
+            ammo_amount = 6
 
             if player.has_weapon_slot(slot):
                 if not player.add_ammo(ammo_type, ammo_amount):
                     return None
                 self.active = False
-                return "Cartuchos +8"
+                return "Cartuchos +6"
 
             player.give_weapon(slot)
             player.add_ammo(ammo_type, ammo_amount)
@@ -196,13 +184,13 @@ class Pickup:
         if self.kind == PickupKind.WEAPON_MACHINEGUN:
             slot = 3
             ammo_type = "bullets"
-            ammo_amount = 40
+            ammo_amount = 30
 
             if player.has_weapon_slot(slot):
                 if not player.add_ammo(ammo_type, ammo_amount):
                     return None
                 self.active = False
-                return "Balas +40"
+                return "Balas +30"
 
             player.give_weapon(slot)
             player.add_ammo(ammo_type, ammo_amount)
@@ -232,6 +220,50 @@ class Pickup:
 
         if self.kind == PickupKind.SECRET:
             self.active = False
-            return "Secreto encontrado"
+            return "¡SECRETO ENCONTRADO! +500"
 
         return None
+
+class DecorationKind(Enum):
+    """Tipos de decoraciones ambientales."""
+    TORCH = "torch"
+    COLUMN = "column"
+    BARREL = "barrel"
+    CONSOLE = "console"
+    SKULL = "skull"
+
+
+class Decoration:
+    """Representa una decoración ambiental que no bloquea el paso."""
+
+    def __init__(
+        self,
+        kind: DecorationKind,
+        x: float,
+        y: float,
+        sprite: Any = None,
+    ) -> None:
+        """Inicializa la decoración con su tipo, posición y sprite."""
+        self.kind = kind
+        self.x = x
+        self.y = y
+        self.sprite = sprite
+        self.active = True
+        self.scale = self._get_scale()
+        self.radius = 0.1  # Radio pequeño, no bloquea el paso
+
+    @property
+    def is_dead(self) -> bool:
+        """Las decoraciones nunca mueren."""
+        return not self.active
+
+    def _get_scale(self) -> float:
+        """Devuelve la escala según el tipo de decoración."""
+        scales = {
+            DecorationKind.TORCH: 0.6,
+            DecorationKind.COLUMN: 0.9,
+            DecorationKind.BARREL: 0.4,
+            DecorationKind.CONSOLE: 0.5,
+            DecorationKind.SKULL: 0.2,
+        }
+        return scales.get(self.kind, 0.5)

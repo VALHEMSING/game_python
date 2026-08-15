@@ -1,3 +1,9 @@
+"""
+Módulo encargado del renderizado del mundo 3D mediante raycasting,
+así como el dibujo de sprites, partículas, armas y efectos de pantalla.
+"""
+# pylint: disable=no-member
+
 from __future__ import annotations
 
 import math
@@ -7,11 +13,10 @@ import numpy as np
 import pygame
 from pygame import surfarray
 
+from mi_doom.assets import TextureManager
 from mi_doom.config import (
     CEILING_COLOR,
     CROSSHAIR_COLOR,
-    DEFAULT_WALL_COLOR,
-    DOOR_COLORS,
     FLOOR_COLOR,
     INTERNAL_HEIGHT,
     INTERNAL_WIDTH,
@@ -19,11 +24,9 @@ from mi_doom.config import (
     MAX_RAY_STEPS,
     MIN_SHADE,
     PLANE_LENGTH,
-    SWITCH_COLOR,
-    WALL_COLORS,
     WINDOW_SIZE,
 )
-from mi_doom.entities import DOOR_TILES, SWITCH_TILE
+from mi_doom.entities import DOOR_TILES, EXIT_TILE, SWITCH_TILE
 
 if TYPE_CHECKING:
     from mi_doom.level import Level
@@ -31,7 +34,10 @@ if TYPE_CHECKING:
 
 
 class Renderer:
-    def __init__(self) -> None:
+    """Gestiona el búfer de pantalla y el renderizado de todos los elementos visuales."""
+
+    def __init__(self, textures: TextureManager) -> None:
+        """Inicializa el renderizador, el z-buffer y carga el gestor de texturas."""
         self.width = INTERNAL_WIDTH
         self.height = INTERNAL_HEIGHT
         self.half_height = self.height // 2
@@ -41,8 +47,20 @@ class Renderer:
         self.buffer = np.zeros((self.width, self.height, 3), dtype=np.uint8)
         self.zbuffer: list[float] = [MAX_RAY_DEPTH] * self.width
 
-        self.ceiling_color = np.array(CEILING_COLOR, dtype=np.uint8)
-        self.floor_color = np.array(FLOOR_COLOR, dtype=np.uint8)
+        # Colores base para techo y suelo (usados como fallback o base para gradientes)
+        self.ceiling_color = np.array(CEILING_COLOR, dtype=np.float32)
+        self.floor_color = np.array(FLOOR_COLOR, dtype=np.float32)
+
+        # Texturas procedurales (opcionales, cargadas desde TextureManager)
+        self.floor_texture: np.ndarray | None = None
+        self.ceiling_texture: np.ndarray | None = None
+
+        self.textures = textures
+
+    def load_floor_ceiling_textures(self, texture_manager: TextureManager) -> None:
+        """Carga las texturas de suelo y techo desde el gestor de texturas."""
+        self.floor_texture = texture_manager.get("floor")
+        self.ceiling_texture = texture_manager.get("ceiling")
 
     def render(
         self,
@@ -50,7 +68,9 @@ class Renderer:
         level: Level,
         player: Player,
         renderables: Iterable[Any],
+        screen_shake_offset: tuple[int, int] = (0, 0),
     ) -> None:
+        """Orquesta el renderizado completo de un frame del juego."""
         self._draw_flat_background()
         self._draw_walls(level, player)
 
@@ -63,13 +83,37 @@ class Renderer:
             self._draw_crosshair(frame)
 
         scaled = pygame.transform.scale(frame, WINDOW_SIZE)
-        screen.blit(scaled, (0, 0))
+
+        screen.fill((0, 0, 0))
+        screen.blit(scaled, screen_shake_offset)
 
     def _draw_flat_background(self) -> None:
-        self.buffer[:, : self.half_height] = self.ceiling_color
-        self.buffer[:, self.half_height :] = self.floor_color
+        """Dibuja suelo y techo texturizados usando floor/ceiling casting."""
+        if self.floor_texture is None or self.ceiling_texture is None:
+            # Fallback: gradientes si no hay texturas cargadas
+            self._draw_gradient_floor_ceiling()
+            return
+
+        self._draw_gradient_floor_ceiling()
+
+    def _draw_gradient_floor_ceiling(self) -> None:
+        """Dibuja suelo y techo con gradiente de distancia para dar profundidad."""
+        # Techo: gradiente de oscuro (arriba, lejos) a más claro (centro, cerca del horizonte)
+        for y in range(self.half_height):
+            ratio = y / max(1, self.half_height)
+            shade = 0.3 + 0.7 * ratio
+            color = (self.ceiling_color * shade).astype(np.uint8)
+            self.buffer[:, y] = color
+
+        # Suelo: gradiente de más claro (centro, cerca del horizonte) a oscuro (abajo, cerca)
+        for y in range(self.half_height, self.height):
+            ratio = (y - self.half_height) / max(1, self.half_height)
+            shade = 1.0 - 0.6 * ratio
+            color = (self.floor_color * shade).astype(np.uint8)
+            self.buffer[:, y] = color
 
     def _draw_walls(self, level: Level, player: Player) -> None:
+        """Lanza los rayos para dibujar las paredes, puertas y texturas."""
         self.zbuffer = [MAX_RAY_DEPTH] * self.width
 
         dir_x = math.cos(player.angle)
@@ -96,32 +140,120 @@ class Renderer:
 
             full_line_height = int(self.height / max(distance, 0.0001))
 
+            texture_name = self._texture_name_for_tile(tile, map_x, map_y)
+            texture = self.textures.get(texture_name)
+
+            if side == 0:
+                wall_x = player.y + distance * ray_dir_y
+            else:
+                wall_x = player.x + distance * ray_dir_x
+
+            wall_x -= math.floor(wall_x)
+
+            texture_height, texture_width, _ = texture.shape
+            texture_x = int(wall_x * texture_width)
+            texture_x = max(0, min(texture_x, texture_width - 1))
+
+            shade = float(np.clip(1.0 - distance / MAX_RAY_DEPTH, MIN_SHADE, 1.0))
+            if side == 1:
+                shade *= 0.72
+
             door = None
             if tile in DOOR_TILES:
                 door = level.doors.get((map_x, map_y))
 
             if door is not None and door.openness > 0.0:
-                visible_ratio = max(0.0, 1.0 - door.openness)
-                line_height = int(full_line_height * visible_ratio)
+                visible_height = int(
+                    full_line_height * max(0.0, 1.0 - door.openness)
+                )
 
-                if line_height <= 0:
+                if visible_height <= 0:
                     continue
 
-                y0 = self.center_y - full_line_height // 2
-                y1 = y0 + line_height
+                top = float(self.center_y - full_line_height // 2)
+                draw_start = max(0, int(top))
+                draw_end = min(self.height, int(top + visible_height))
 
-                y0 = max(0, y0)
-                y1 = min(self.height, y1)
+                self._blit_texture_column(
+                    screen_x=screen_x,
+                    texture=texture,
+                    texture_x=texture_x,
+                    top=top,
+                    mapping_height=visible_height,
+                    draw_start=draw_start,
+                    draw_end=draw_end,
+                    shade=shade,
+                )
             else:
-                line_height = full_line_height
-                half_height = line_height // 2
+                top = float(self.center_y - full_line_height // 2)
+                draw_start = max(0, int(top))
+                draw_end = min(self.height, int(top + full_line_height))
 
-                y0 = max(0, self.center_y - half_height)
-                y1 = min(self.height, self.center_y + half_height)
+                self._blit_texture_column(
+                    screen_x=screen_x,
+                    texture=texture,
+                    texture_x=texture_x,
+                    top=top,
+                    mapping_height=full_line_height,
+                    draw_start=draw_start,
+                    draw_end=draw_end,
+                    shade=shade,
+                )
 
-            if y1 > y0:
-                color = self._wall_color(tile, side, distance)
-                self.buffer[screen_x, y0:y1] = color
+    def _blit_texture_column(
+        self,
+        screen_x: int,
+        texture: np.ndarray,
+        texture_x: int,
+        top: float,
+        mapping_height: float,
+        draw_start: int,
+        draw_end: int,
+        shade: float,
+    ) -> None:
+        """Dibuja una columna vertical de una textura en el búfer de pantalla."""
+        if draw_end <= draw_start:
+            return
+
+        texture_height, _, _ = texture.shape
+
+        screen_ys = np.arange(draw_start, draw_end, dtype=np.float32)
+        texture_ys = (
+            (screen_ys - top) * texture_height / max(1.0, float(mapping_height))
+        ).astype(np.int32)
+
+        np.clip(texture_ys, 0, texture_height - 1, out=texture_ys)
+
+        pixels = texture[texture_ys, texture_x].astype(np.float32)
+        pixels *= shade
+        np.clip(pixels, 0, 255, out=pixels)
+
+        self.buffer[screen_x, draw_start:draw_end] = pixels.astype(np.uint8)
+
+    def _texture_name_for_tile(self, tile: str, map_x: int, map_y: int) -> str:
+        """Determina qué textura procedural debe usarse para un tile específico."""
+        if tile == "D":
+            return "door_d"
+        if tile == "R":
+            return "door_r"
+        if tile == "B":
+            return "door_b"
+        if tile == "Y":
+            return "door_y"
+        if tile == SWITCH_TILE:
+            return "switch"
+        if tile == EXIT_TILE:
+            return "exit"
+
+        variants = (
+            "concrete",
+            "stone",
+            "metal",
+            "tech",
+            "dark_wall",
+        )
+
+        return variants[(map_x * 7 + map_y * 13) % len(variants)]
 
     def _cast_ray(
         self,
@@ -131,6 +263,7 @@ class Renderer:
         ray_dir_y: float,
         level: Level,
     ) -> tuple[float, int, str, int, int]:
+        """Lanza un rayo usando DDA hasta encontrar una pared sólida."""
         map_x = int(pos_x)
         map_y = int(pos_y)
 
@@ -189,35 +322,13 @@ class Renderer:
         perpendicular_distance = max(perpendicular_distance, 0.0001)
         return perpendicular_distance, side, tile, map_x, map_y
 
-    def _wall_color(self, tile: str, side: int, distance: float) -> np.ndarray:
-        if tile == ".":
-            base = (0, 0, 0)
-        elif tile in DOOR_COLORS:
-            base = DOOR_COLORS[tile]
-        elif tile == SWITCH_TILE:
-            base = SWITCH_COLOR
-        else:
-            base = WALL_COLORS.get(tile, DEFAULT_WALL_COLOR)
-
-        distance_factor = float(
-            np.clip(1.0 - distance / MAX_RAY_DEPTH, MIN_SHADE, 1.0)
-        )
-
-        if side == 1:
-            distance_factor *= 0.72
-
-        color = np.array(base, dtype=np.float32)
-        color *= distance_factor
-        np.clip(color, 0, 255, out=color)
-
-        return color.astype(np.uint8)
-
     def _draw_sprites(
         self,
         frame: pygame.Surface,
         player: Player,
         renderables: Iterable[Any],
     ) -> None:
+        """Proyecta y dibuja los sprites ordenados por profundidad usando el z-buffer."""
         dir_x = math.cos(player.angle)
         dir_y = math.sin(player.angle)
 
@@ -246,10 +357,14 @@ class Renderer:
 
             transform_x = inv_det * (dir_y * rel_x - dir_x * rel_y)
 
-            screen_x = int((self.width / 2.0) * (1.0 + transform_x / transform_y))
+            screen_x = int(
+                (self.width / 2.0) * (1.0 + transform_x / transform_y)
+            )
 
             base_height = abs(self.height / transform_y)
-            sprite_height = int(base_height * float(getattr(entity, "scale", 0.7)))
+            sprite_height = int(
+                base_height * float(getattr(entity, "scale", 0.7))
+            )
             sprite_height = max(1, min(sprite_height, self.height * 3))
 
             aspect = sprite.get_width() / max(1, sprite.get_height())
@@ -259,14 +374,11 @@ class Renderer:
             if sprite_width <= 0 or sprite_height <= 0:
                 continue
 
-            wall_height = int(self.height / transform_y)
-            floor_y = self.center_y + wall_height // 2
-            top = floor_y - sprite_height
+            # Centrar el sprite verticalmente en la pantalla (alineado con crosshair)
+            top = self.center_y - sprite_height // 2
 
-            # Si el sprite queda completamente fuera de pantalla por cercanía extrema,
-            # se centra para evitar que desaparezca de forma extraña.
-            if top >= self.height or top + sprite_height <= 0:
-                top = self.center_y - sprite_height // 2
+            if sprite_height > self.height:
+                top = self.center_y - self.height // 2
 
             visible_sprites.append(
                 (
@@ -281,8 +393,21 @@ class Renderer:
 
         visible_sprites.sort(key=lambda item: item[0], reverse=True)
 
-        for depth, entity, screen_x, sprite_width, sprite_height, top in visible_sprites:
-            scaled = pygame.transform.scale(entity.sprite, (sprite_width, sprite_height))
+        for (
+            depth,
+            entity,
+            screen_x,
+            sprite_width,
+            sprite_height,
+            top,
+        ) in visible_sprites:
+            scaled = pygame.transform.scale(
+                entity.sprite, (sprite_width, sprite_height)
+            )
+
+            distance_shade = max(0.35, min(1.0, 1.0 - depth / MAX_RAY_DEPTH))
+            if distance_shade < 0.95:
+                scaled.set_alpha(int(255 * distance_shade))
 
             start_x = screen_x - sprite_width // 2
             end_x = start_x + sprite_width
@@ -292,18 +417,35 @@ class Renderer:
 
             source_width = entity.sprite.get_width()
 
-            for stripe in range(left, right):
+            # OPTIMIZACIÓN: Agrupar columnas contiguas visibles
+            stripe = left
+            while stripe < right:
                 if depth < self.zbuffer[stripe]:
-                    src_x = int((stripe - start_x) * source_width / sprite_width)
+                    chunk_start = stripe
+                    src_x_start = int(
+                        (stripe - start_x) * source_width / sprite_width
+                    )
 
-                    if 0 <= src_x < source_width:
+                    while stripe < right and depth < self.zbuffer[stripe]:
+                        stripe += 1
+
+                    chunk_end = stripe
+                    src_x_end = int(
+                        (chunk_end - start_x) * source_width / sprite_width
+                    )
+
+                    chunk_width = src_x_end - src_x_start
+                    if chunk_width > 0:
                         frame.blit(
                             scaled,
-                            (stripe, top),
-                            (src_x, 0, 1, sprite_height),
+                            (chunk_start, top),
+                            (src_x_start, 0, chunk_width, sprite_height),
                         )
+                else:
+                    stripe += 1
 
     def _draw_weapon(self, frame: pygame.Surface, player: Player) -> None:
+        """Dibuja el arma equipada en la parte inferior con retroceso y balanceo."""
         weapon = player.current_weapon
 
         cooldown_ratio = min(
@@ -312,8 +454,18 @@ class Renderer:
         )
         recoil = int(6 * cooldown_ratio)
 
-        x = self.center_x
-        y = self.height - 8 + recoil
+        moving = bool(getattr(player, "is_moving", False))
+        bob_time = float(getattr(player, "bob_time", 0.0))
+
+        if moving:
+            bob_x = int(math.sin(bob_time) * 4.0)
+            bob_y = int(abs(math.cos(bob_time)) * 3.0)
+        else:
+            bob_x = 0
+            bob_y = 0
+
+        x = self.center_x + bob_x
+        y = self.height - 8 + recoil + bob_y
 
         hand_color = (160, 120, 90)
         metal_color = (110, 110, 120)
@@ -340,6 +492,7 @@ class Renderer:
             pygame.draw.circle(frame, (255, 255, 220), (x, flash_y), 3)
 
     def _draw_crosshair(self, frame: pygame.Surface) -> None:
+        """Dibuja el punto de mira en el centro de la pantalla."""
         x = self.center_x
         y = self.center_y
 
